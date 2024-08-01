@@ -1,0 +1,23 @@
+replicaCount: 1
+
+autoscaling:
+  enabled: false
+
+image:
+  repository: ""
+  pullPolicy: IfNotPresent
+  tag: ""
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  hosts:
+    - host: "hello.gaudium.io"
+      paths:
+        - path: /
+          pathType: ImplementationSpecific

@@ -1,0 +1,37 @@
+image: docker:latest
+services:
+  - docker:dind
+  
+stages:
+  - build-jar
+  - build-push-image
+  - deploy-k8s
+
+build-jar:
+  image: maven:3.6.3-jdk-11
+  stage: build-jar
+  script:
+  - mvn package
+  artifacts:
+    paths:
+    - target/*.jar
+
+build-push-image:
+  before_script:
+  - docker login -u $REGISTRY_USER -p $REGISTRY_PASSWD
+  stage: build-push-image
+  script:
+  - docker build -t hello-app .
+  - docker tag hello-app $REGISTRY_USER/hello-app:${CI_COMMIT_SHORT_SHA}
+  - docker push $REGISTRY_USER/hello-app:${CI_COMMIT_SHORT_SHA}
+
+deploy-k8s:
+  stage: deploy-k8s
+  image: dtzar/helm-kubectl
+  script:
+    - kubectl config set-cluster k8s --server="${SERVER}"
+    - kubectl config set clusters.k8s.certificate-authority-data ${CERTIFICATE_AUTHORITY_DATA}
+    - kubectl config set-credentials gitlab --token="${USER_TOKEN}"
+    - kubectl config set-context default --cluster=k8s --user=gitlab
+    - kubectl config use-context default
+    - helm upgrade -i hello-app -f ./values.yml ./chart/ -n hello-app --set image.repository=$REGISTRY_USER/hello-app --set image.tag=${CI_COMMIT_SHORT_SHA} --create-namespace
